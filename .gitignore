@@ -1,2 +1,5 @@
 out
 node_modules
+*.vsix
+dist
+.idea
