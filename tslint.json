@@ -1,5 +1,5 @@
 {
-    "defaultSeverity": "error",
+    "defaultSeverity": "warn",
     "extends": [
         "tslint:recommended"
     ],
@@ -8,8 +8,7 @@
         "quotemark": false,
         "no-console": false,
         "no-namespace": false,
-        "variable-name": false,
-        
+        "variable-name": false
     },
     "rulesDirectory": []
 }
