@@ -100,22 +100,22 @@ export namespace flow {
         "Gitflow has already been initialized for this repository. Would you like to re-initialize?",
         "Yes"
       ));
-      if (!do_reinit) return;
+      if (!do_reinit) {return;}
     }
 
-    const branchNonEmpty = str => (!!str ? "" : "A branch name is required");
+    const branchNonEmpty = (str: any) => (!!str ? "" : "A branch name is required");
     const master_name = await vscode.window.showInputBox({
       prompt: "Enter a name for the production branch",
       value: config.default_production,
       validateInput: branchNonEmpty
     });
-    if (!master_name) return;
+    if (!master_name) {return;}
     const develop_name = await vscode.window.showInputBox({
       prompt: "Enter a name for the development branch",
       value: config.default_development,
       validateInput: branchNonEmpty
     });
-    if (!develop_name) return;
+    if (!develop_name) {return;}
     if (master_name === develop_name) {
       fail.error({
         message: "Production and development branches must differ"
@@ -183,14 +183,14 @@ export namespace flow {
         value: `${what}/`,
         validateInput: branchNonEmpty
       });
-      if (!prefix) return;
+      if (!prefix) {return;}
       await git.config.set(`gitflow.prefix.${what}`, prefix);
     }
 
     const version_tag_prefix = await vscode.window.showInputBox({
       prompt: "Enter a prefix for version tags (optional)"
     });
-    if (version_tag_prefix === null) return;
+    if (version_tag_prefix === null) {return;}
     await git.config.set("gitflow.prefix.versiontag", version_tag_prefix);
 
     // Set the main branches, and gitflow is officially 'enabled'
@@ -287,7 +287,7 @@ export namespace flow.feature {
           `other users!`,
         "Rebase anyway"
       ));
-      if (!do_rebase) return;
+      if (!do_rebase) {return;}
     }
 
     await git.requireClean();
@@ -549,7 +549,7 @@ export namespace flow.release {
         const tag_message = await vscode.window.showInputBox({
           prompt: "Enter a tag message (optional)"
         });
-        if (tag_message === undefined) return;
+        if (tag_message === undefined) {return;}
 
         // Now the crux of the logic, after we've done all our sanity checking
         pr.report({ message: "Switching to master..." });

@@ -7,12 +7,12 @@ import { fail } from "./fail";
 import { buildTreeView } from "./treeview";
 
 async function runWrapped<T>(
-  fn: (...any) => Thenable<T>,
+  fn: (...arg0: any[]) => Thenable<T>,
   args: any[] = []
 ): Promise<T | null> {
   try {
     return await fn(...args);
-  } catch (e) {
+  } catch (e: any) {
     if (!e.handlers && !e.message) {
       throw e;
     }
@@ -34,17 +34,17 @@ async function setup(disposables: vscode.Disposable[]) {
   git.info = await findGit(pathHint);
   vscode.window.setStatusBarMessage(
     "gitflow using git executable: " +
-      git.info.path +
-      " with version " +
-      git.info.version,
+    git.info.path +
+    " with version " +
+    git.info.version,
     5000
   );
   const commands = [
-    vscode.commands.registerCommand("gitflow-actions.initialize", async () => {
+    vscode.commands.registerCommand("gitflowplus-actions.initialize", async () => {
       await runWrapped(flow.initialize);
     }),
     vscode.commands.registerCommand(
-      "gitflow-actions.featureStart",
+      "gitflowplus-actions.featureStart",
       async () => {
         await runWrapped(flow.requireFlowEnabled);
         await runWrapped(flow.feature.precheck);
@@ -62,18 +62,18 @@ async function setup(disposables: vscode.Disposable[]) {
       }
     ),
     vscode.commands.registerCommand(
-      "gitflow-actions.featureRebase",
+      "gitflowplus-actions.featureRebase",
       async () => {
         await runWrapped(flow.feature.rebase, ["feature"]);
       }
     ),
     vscode.commands.registerCommand(
-      "gitflow-actions.featureFinish",
+      "gitflowplus-actions.featureFinish",
       async () => {
         await runWrapped(flow.feature.finish, ["feature"]);
       }
     ),
-    vscode.commands.registerCommand("gitflow-actions.bugfixStart", async () => {
+    vscode.commands.registerCommand("gitflowplus-actions.bugfixStart", async () => {
       await runWrapped(flow.requireFlowEnabled);
       await runWrapped(flow.feature.precheck);
       const name = await vscode.window.showInputBox({
@@ -89,19 +89,19 @@ async function setup(disposables: vscode.Disposable[]) {
       ]);
     }),
     vscode.commands.registerCommand(
-      "gitflow-actions.bugfixRebase",
+      "gitflowplus-actions.bugfixRebase",
       async () => {
         await runWrapped(flow.feature.rebase, ["bugfix"]);
       }
     ),
     vscode.commands.registerCommand(
-      "gitflow-actions.bugfixFinish",
+      "gitflowplus-actions.bugfixFinish",
       async () => {
         await runWrapped(flow.feature.finish, ["bugfix"]);
       }
     ),
     vscode.commands.registerCommand(
-      "gitflow-actions.releaseStart",
+      "gitflowplus-actions.releaseStart",
       async () => {
         await runWrapped(flow.requireFlowEnabled);
         await runWrapped(flow.release.precheck);
@@ -119,12 +119,12 @@ async function setup(disposables: vscode.Disposable[]) {
       }
     ),
     vscode.commands.registerCommand(
-      "gitflow-actions.releaseFinish",
+      "gitflowplus-actions.releaseFinish",
       async () => {
         await runWrapped(flow.release.finish);
       }
     ),
-    vscode.commands.registerCommand("gitflow-actions.hotfixStart", async () => {
+    vscode.commands.registerCommand("gitflowplus-actions.hotfixStart", async () => {
       await runWrapped(flow.requireFlowEnabled);
       const guessedVersion =
         (await runWrapped(flow.hotfix.guess_new_version)) || "";
@@ -139,11 +139,11 @@ async function setup(disposables: vscode.Disposable[]) {
       await runWrapped(flow.hotfix.start, [name.split(" ").join("-")]);
     }),
     vscode.commands.registerCommand(
-      "gitflow-actions.hotfixFinish",
+      "gitflowplus-actions.hotfixFinish",
       async () => {
         await runWrapped(flow.hotfix.finish);
       }
-    )
+    ),
   ];
   // add disposable
   disposables.push(...commands);
@@ -162,4 +162,4 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function // tslint:disable-next-line:no-empty
-deactivate() {}
+  deactivate() { }

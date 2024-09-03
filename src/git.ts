@@ -7,9 +7,9 @@ import { fail } from "./fail";
 
 // Taken from
 // https://github.com/Microsoft/vscode/blob/cda3584a99d2832ab9d478c6b65ea45c96fe00c9/extensions/git/src/util.ts
-export function denodeify<R>(fn: Function): (...args) => Promise<R> {
+export function denodeify<R>(fn: Function): (...args: any) => Promise<R> {
   return (...args) =>
-    new Promise((c, e) => fn(...args, (err, r) => (err ? e(err) : c(r))));
+    new Promise((c, e) => fn(...args, (err: any, r: R | PromiseLike<R>) => (err ? e(err) : c(r))));
 }
 
 const readdir = denodeify<string[]>(fs.readdir);
@@ -35,13 +35,13 @@ function findSpecificGit(path: string): Promise<IGit> {
       code
         ? e(new Error("Not found"))
         : c({
-            path,
-            version: parseVersion(
-              Buffer.concat(buffers)
-                .toString("utf8")
-                .trim()
-            )
-          })
+          path,
+          version: parseVersion(
+            Buffer.concat(buffers)
+              .toString("utf8")
+              .trim()
+          )
+        })
     );
   });
 }
@@ -57,7 +57,7 @@ function findGitDarwin(): Promise<IGit> {
 
       function getVersion(path: string) {
         // make sure git executes
-        cp.exec("git --version", (err: Error, stdout: string) => {
+        cp.exec("git --version", (err: cp.ExecException | null, stdout: string) => {
           if (err) {
             return e("git not found");
           }
@@ -147,7 +147,7 @@ export namespace git {
    * Represents a git remote
    */
   export class RemoteRef {
-    constructor(public name: string) {}
+    constructor(public name: string) { }
 
     /// Create a remote reference from a remote's name
     public static fromName(name: string) {
@@ -173,7 +173,7 @@ export namespace git {
   }
 
   export class TagRef {
-    constructor(public name: string) {}
+    constructor(public name: string) { }
 
     /**
      * Get a tag reference by name
@@ -240,12 +240,15 @@ export namespace git {
   }
 
   export class BranchRef {
-    constructor(public name: string) {}
+    constructor(public name: string) { }
 
     /**
      * Create a branch reference from a string name
      */
-    public static fromName(name: string) {
+    public static fromName(name: string | null) {
+      if (name === null) {
+        throw new Error("错误");
+      }
       return new BranchRef(name);
     }
 
@@ -283,7 +286,7 @@ export namespace git {
         "--no-color"
       ]);
       const remote_stdout = remote_result.stdout;
-      const filter = output => {
+      const filter = (output: any) => {
         return output;
       };
 
@@ -469,13 +472,13 @@ export namespace git {
         handlers: !offer_pull
           ? []
           : [
-              {
-                title: "Pull now",
-                cb: async function() {
-                  git.pull(primaryRemote(), a);
-                }
+            {
+              title: "Pull now",
+              cb: async function () {
+                git.pull(primaryRemote(), a);
               }
-            ]
+            }
+          ]
       });
     }
   }

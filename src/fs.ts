@@ -13,10 +13,8 @@ export namespace fs {
     export function readFile(path: string): Promise<Buffer> {
         return new Promise((resolve, reject) => {
             nodefs.readFile(path, (err, data) => {
-                if (err)
-                    reject(err);
-                else
-                    resolve(data);
+                if (err) { reject(err); }
+                else { resolve(data); }
             });
         })
     }
@@ -24,10 +22,8 @@ export namespace fs {
     export function writeFile(path: string, buf: any): Promise<void> {
         return new Promise<void>((resolve, reject) => {
             nodefs.writeFile(path, buf, (err) => {
-                if (err)
-                    reject(err);
-                else
-                    resolve();
+                if (err) { reject(err); }
+                else { resolve(); }
             });
         });
     }
@@ -35,10 +31,8 @@ export namespace fs {
     export function remove(path: string) {
         return new Promise((resolve, reject) => {
             nodefs.unlink(path, (err) => {
-                if (err)
-                    reject(err);
-                else
-                    resolve();
+                if (err) { reject(err); }
+                else { resolve(""); }
             });
         });
     }
