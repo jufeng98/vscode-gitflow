@@ -6,10 +6,7 @@ import { flow } from "./flow";
 import { fail } from "./fail";
 import { buildTreeView } from "./treeview";
 
-async function runWrapped<T>(
-  fn: (...arg0: any[]) => Thenable<T>,
-  args: any[] = []
-): Promise<T | null> {
+async function runWrapped<T>(fn: (...arg0: any[]) => Thenable<T>, args: any[] = []): Promise<T | null> {
   try {
     return await fn(...args);
   } catch (e: any) {
@@ -45,8 +42,6 @@ async function setup(disposables: vscode.Disposable[]) {
     }),
 
     vscode.commands.registerCommand("gitflowplus-actions.createFeatureBranch", async () => {
-      await runWrapped(flow.requireFlowEnabled);
-      await runWrapped(flow.feature.precheck);
       const name = await vscode.window.showInputBox({
         placeHolder: "my-awesome-feature",
         prompt: "请输入新功能分支名字"
@@ -54,6 +49,7 @@ async function setup(disposables: vscode.Disposable[]) {
       if (!name) {
         return;
       }
+
       await runWrapped(flow.feature.createBranch, [
         name.split(" ").join("-"),
         "featurePrefix"
@@ -61,8 +57,6 @@ async function setup(disposables: vscode.Disposable[]) {
     }
     ),
     vscode.commands.registerCommand("gitflowplus-actions.createBugfixBranch", async () => {
-      await runWrapped(flow.requireFlowEnabled);
-      await runWrapped(flow.feature.precheck);
       const name = await vscode.window.showInputBox({
         placeHolder: "my-awesome-bugfix",
         prompt: "请输入新修复分支名字"
@@ -70,6 +64,7 @@ async function setup(disposables: vscode.Disposable[]) {
       if (!name) {
         return;
       }
+
       await runWrapped(flow.feature.createBranch, [
         name.split(" ").join("-"),
         "hotfixPrefix"
@@ -83,18 +78,19 @@ async function setup(disposables: vscode.Disposable[]) {
     vscode.commands.registerCommand("gitflowplus-actions.publishBranch", async () => {
       await runWrapped(flow.feature.publishCurrentBranch);
     }),
-    vscode.commands.registerCommand("gitflowplus-actions.publishFeatureBranch", async () => {
-      await runWrapped(flow.feature.publishBranch, ["featurePrefix"]);
-    }),
-    vscode.commands.registerCommand("gitflowplus-actions.publishBugfixBranch", async () => {
-      await runWrapped(flow.feature.publishBranch, ["hotfixPrefix"]);
-    }),
     vscode.commands.registerCommand("gitflowplus-actions.publishFinish", async () => {
       await runWrapped(flow.release.publishFinish);
     }),
 
     vscode.commands.registerCommand("gitflowplus-actions.deleteBranch", async () => {
       await runWrapped(flow.deleteBranch);
+    }),
+    
+    vscode.commands.registerCommand("gitflowplus-actions.publishFeatureBranch", async () => {
+      await runWrapped(flow.feature.publishBranch, ["featurePrefix"]);
+    }),
+    vscode.commands.registerCommand("gitflowplus-actions.publishBugfixBranch", async () => {
+      await runWrapped(flow.feature.publishBranch, ["hotfixPrefix"]);
     }),
 
     vscode.commands.registerCommand("gitflowplus-actions.releaseStart", async () => {

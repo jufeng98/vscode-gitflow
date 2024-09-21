@@ -322,7 +322,7 @@ export namespace git {
   /**
    * Get a reference to the currently checked out branch
    */
-  export async function currentBranch(): Promise<BranchRef | null> {
+  export async function currentBranch(): Promise<BranchRef> {
     const result = await cmd.executeRequired(info.path, [
       "rev-parse",
       "--abbrev-ref",
@@ -331,8 +331,9 @@ export namespace git {
     const name = result.stdout.trim();
     if (name === "HEAD") {
       // We aren't attached to a branch at the moment
-      return null;
+      fail.error({ message: "无法获取当前分支" });
     }
+
     return BranchRef.fromName(name);
   }
 
@@ -476,7 +477,7 @@ export namespace git {
       tagMessage,
     ]);
   }
-  
+
   /**
    * Merge one branch into the currently checked out branch
    */
@@ -501,32 +502,20 @@ export namespace git {
 
   /**
    * Require that two branches point to the same commit.
-   *
-   * If given ``true`` for ``offer_pull``, will offer the use the ability
-   * to quickly pull from 'origin' onto the ``a`` branch.
    */
-  export async function requireEqual(
-    a: BranchRef,
-    b: BranchRef,
-    offer_pull: boolean = false
-  ) {
-    const aref = await a.ref();
-    const bref = await b.ref();
+  export async function requireEqual(local: BranchRef, remote: BranchRef,) {
+    const aref = await local.ref();
+    const bref = await remote.ref();
 
+    // 如果 local 分支不是最新的,则 pull
     if (aref !== bref) {
-      fail.error({
-        message: `分支 "${a.name}" 和远程分支 ${b.name} 存在差异`,
-        handlers: !offer_pull
-          ? []
-          : [
-            {
-              title: "是否现在 pull ?",
-              cb: async function () {
-                git.pull(primaryRemote(), a);
-              }
-            }
-          ]
-      });
+      const currentBranch = await git.currentBranch();
+
+      await git.checkout(local);
+
+      await cmd.execute(info.path, ["pull"]);
+
+      await git.checkout(currentBranch);
     }
   }
 
