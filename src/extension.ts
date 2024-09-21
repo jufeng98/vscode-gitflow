@@ -43,87 +43,79 @@ async function setup(disposables: vscode.Disposable[]) {
     vscode.commands.registerCommand("gitflowplus-actions.initialize", async () => {
       await runWrapped(flow.initialize);
     }),
-    vscode.commands.registerCommand(
-      "gitflowplus-actions.featureStart",
-      async () => {
-        await runWrapped(flow.requireFlowEnabled);
-        await runWrapped(flow.feature.precheck);
-        const name = await vscode.window.showInputBox({
-          placeHolder: "my-awesome-feature",
-          prompt: "A new name for your feature"
-        });
-        if (!name) {
-          return;
-        }
-        await runWrapped(flow.feature.start, [
-          name.split(" ").join("-"),
-          "feature"
-        ]);
-      }
-    ),
-    vscode.commands.registerCommand(
-      "gitflowplus-actions.featureRebase",
-      async () => {
-        await runWrapped(flow.feature.rebase, ["feature"]);
-      }
-    ),
-    vscode.commands.registerCommand(
-      "gitflowplus-actions.featureFinish",
-      async () => {
-        await runWrapped(flow.feature.finish, ["feature"]);
-      }
-    ),
-    vscode.commands.registerCommand("gitflowplus-actions.bugfixStart", async () => {
+
+    vscode.commands.registerCommand("gitflowplus-actions.createFeatureBranch", async () => {
       await runWrapped(flow.requireFlowEnabled);
       await runWrapped(flow.feature.precheck);
       const name = await vscode.window.showInputBox({
-        placeHolder: "my-awesome-bugfix",
-        prompt: "A new name for your bugfix"
+        placeHolder: "my-awesome-feature",
+        prompt: "请输入新功能分支名字"
       });
       if (!name) {
         return;
       }
-      await runWrapped(flow.feature.start, [
+      await runWrapped(flow.feature.createBranch, [
         name.split(" ").join("-"),
-        "bugfix"
+        "featurePrefix"
+      ]);
+    }
+    ),
+    vscode.commands.registerCommand("gitflowplus-actions.createBugfixBranch", async () => {
+      await runWrapped(flow.requireFlowEnabled);
+      await runWrapped(flow.feature.precheck);
+      const name = await vscode.window.showInputBox({
+        placeHolder: "my-awesome-bugfix",
+        prompt: "请输入新修复分支名字"
+      });
+      if (!name) {
+        return;
+      }
+      await runWrapped(flow.feature.createBranch, [
+        name.split(" ").join("-"),
+        "hotfixPrefix"
       ]);
     }),
-    vscode.commands.registerCommand(
-      "gitflowplus-actions.bugfixRebase",
-      async () => {
-        await runWrapped(flow.feature.rebase, ["bugfix"]);
+
+    vscode.commands.registerCommand("gitflowplus-actions.startTestBranch", async () => {
+      await runWrapped(flow.feature.startTestBranch, []);
+    }),
+
+    vscode.commands.registerCommand("gitflowplus-actions.publishBranch", async () => {
+      await runWrapped(flow.feature.publishCurrentBranch);
+    }),
+    vscode.commands.registerCommand("gitflowplus-actions.publishFeatureBranch", async () => {
+      await runWrapped(flow.feature.publishBranch, ["featurePrefix"]);
+    }),
+    vscode.commands.registerCommand("gitflowplus-actions.publishBugfixBranch", async () => {
+      await runWrapped(flow.feature.publishBranch, ["hotfixPrefix"]);
+    }),
+    vscode.commands.registerCommand("gitflowplus-actions.publishFinish", async () => {
+      await runWrapped(flow.release.publishFinish);
+    }),
+
+    vscode.commands.registerCommand("gitflowplus-actions.deleteBranch", async () => {
+      await runWrapped(flow.deleteBranch);
+    }),
+
+    vscode.commands.registerCommand("gitflowplus-actions.releaseStart", async () => {
+      await runWrapped(flow.requireFlowEnabled);
+      await runWrapped(flow.release.precheck);
+      const guessedVersion =
+        (await runWrapped(flow.release.guess_new_version)) || "";
+      const name = await vscode.window.showInputBox({
+        placeHolder: guessedVersion,
+        prompt: "The name of the release",
+        value: guessedVersion
+      });
+      if (!name) {
+        return;
       }
-    ),
-    vscode.commands.registerCommand(
-      "gitflowplus-actions.bugfixFinish",
-      async () => {
-        await runWrapped(flow.feature.finish, ["bugfix"]);
-      }
-    ),
-    vscode.commands.registerCommand(
-      "gitflowplus-actions.releaseStart",
-      async () => {
-        await runWrapped(flow.requireFlowEnabled);
-        await runWrapped(flow.release.precheck);
-        const guessedVersion =
-          (await runWrapped(flow.release.guess_new_version)) || "";
-        const name = await vscode.window.showInputBox({
-          placeHolder: guessedVersion,
-          prompt: "The name of the release",
-          value: guessedVersion
-        });
-        if (!name) {
-          return;
-        }
-        await runWrapped(flow.release.start, [name.split(" ").join("-")]);
-      }
-    ),
-    vscode.commands.registerCommand(
-      "gitflowplus-actions.releaseFinish",
-      async () => {
-        await runWrapped(flow.release.finish);
-      }
-    ),
+      await runWrapped(flow.release.start, [name.split(" ").join("-")]);
+    }),
+    vscode.commands.registerCommand("gitflowplus-actions.releaseFinish", async () => {
+      await runWrapped(flow.release.finish);
+    }),
+
     vscode.commands.registerCommand("gitflowplus-actions.hotfixStart", async () => {
       await runWrapped(flow.requireFlowEnabled);
       const guessedVersion =
@@ -138,12 +130,17 @@ async function setup(disposables: vscode.Disposable[]) {
       }
       await runWrapped(flow.hotfix.start, [name.split(" ").join("-")]);
     }),
-    vscode.commands.registerCommand(
-      "gitflowplus-actions.hotfixFinish",
-      async () => {
-        await runWrapped(flow.hotfix.finish);
-      }
+    vscode.commands.registerCommand("gitflowplus-actions.hotfixFinish", async () => {
+      await runWrapped(flow.hotfix.finish);
+    }),
+
+    vscode.commands.registerCommand("gitflowplus-actions.featureRebase", async () => {
+      await runWrapped(flow.feature.rebase, ["feature"]);
+    }
     ),
+    vscode.commands.registerCommand("gitflowplus-actions.bugfixRebase", async () => {
+      await runWrapped(flow.feature.rebase, ["bugfix"]);
+    }),
   ];
   // add disposable
   disposables.push(...commands);

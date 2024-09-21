@@ -1,17 +1,17 @@
 {
-  "name": "gitflow-actions-sidebar",
-  "displayName": "Gitflow Actions Sidebar",
-  "description": "Gitflow integration sidebar in Visual Studio Code",
-  "version": "0.5.0",
-  "publisher": "ardisaurus",
+  "name": "gitflowplus",
+  "displayName": "GitFlowPlus",
+  "description": "GitFlowPlus 用于快捷合并分支, 遵循Git工作流",
+  "version": "1.3.0",
+  "publisher": "liangyudong",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ardisaurus/vscode-gitflow"
+    "url": "https://github.com/jufeng98/vscode-gitflow"
   },
   "bugs": {
-    "url": "https://github.com/ardisaurus/vscode-gitflow/issues"
+    "url": "https://github.com/jufeng98/vscode-gitflow/issues"
   },
-  "homepage": "https://github.com/ardisaurus/vscode-gitflow",
+  "homepage": "https://github.com/jufeng98/vscode-gitflow",
   "keywords": [
     "git",
     "flow",
@@ -22,7 +22,7 @@
     "version control system"
   ],
   "engines": {
-    "vscode": "^1.13.0"
+    "vscode": "^1.92.2"
   },
   "categories": [
     "Other"
@@ -33,261 +33,343 @@
   },
   "icon": "res/icon_128.png",
   "activationEvents": [
-    "*"
+    "onStartupFinished"
   ],
-  "main": "./out/src/extension",
+  "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "gitflow-actions.initialize",
-        "title": "Initialize repository for gitflow",
-        "category": "Gitflow",
+        "command": "gitflowplus-actions.initialize",
+        "title": "初始化 GitFlowPlus",
+        "category": "GitFlowPlus",
         "icon": {
           "light": "res/light/add.svg",
           "dark": "res/dark/add.svg"
         }
       },
       {
-        "command": "gitflow-actions.featureStart",
-        "title": "Feature: start",
-        "category": "Gitflow",
+        "command": "gitflowplus-actions.createFeatureBranch",
+        "title": "新建开发分支",
+        "category": "GitFlowPlus",
         "icon": {
           "light": "res/light/play.svg",
           "dark": "res/dark/play.svg"
         }
       },
       {
-        "command": "gitflow-actions.featureRebase",
-        "title": "Feature: rebase",
-        "category": "Gitflow",
-        "icon": {
-          "light": "res/light/refresh.svg",
-          "dark": "res/dark/refresh.svg"
-        }
-      },
-      {
-        "command": "gitflow-actions.featureFinish",
-        "title": "Feature: finish",
-        "category": "Gitflow",
-        "icon": {
-          "light": "res/light/goal.svg",
-          "dark": "res/dark/goal.svg"
-        }
-      },
-      {
-        "command": "gitflow-actions.bugfixStart",
-        "title": "Bugfix: start",
-        "category": "Gitflow",
+        "command": "gitflowplus-actions.createBugfixBranch",
+        "title": "新建修复分支",
+        "category": "GitFlowPlus",
         "icon": {
           "light": "res/light/play.svg",
           "dark": "res/dark/play.svg"
         }
       },
       {
-        "command": "gitflow-actions.bugfixRebase",
-        "title": "Bugfix: rebase",
-        "category": "Gitflow",
+        "command": "gitflowplus-actions.startTestBranch",
+        "title": "提测",
+        "category": "GitFlowPlus",
         "icon": {
-          "light": "res/light/refresh.svg",
-          "dark": "res/dark/refresh.svg"
+          "light": "res/light/play.svg",
+          "dark": "res/dark/play.svg"
         }
       },
       {
-        "command": "gitflow-actions.bugfixFinish",
-        "title": "Bugfix: finish",
-        "category": "Gitflow",
+        "command": "gitflowplus-actions.publishBranch",
+        "title": "开始发布",
+        "category": "GitFlowPlus",
         "icon": {
           "light": "res/light/goal.svg",
           "dark": "res/dark/goal.svg"
         }
       },
       {
-        "command": "gitflow-actions.releaseStart",
+        "command": "gitflowplus-actions.publishFinish",
+        "title": "完成发布",
+        "category": "GitFlowPlus",
+        "icon": {
+          "light": "res/light/goal.svg",
+          "dark": "res/dark/goal.svg"
+        }
+      },
+      {
+        "command": "gitflowplus-actions.deleteBranch",
+        "title": "删除当前分支(包括远程)",
+        "category": "GitFlowPlus",
+        "icon": {
+          "light": "res/delete.svg",
+          "dark": "res/delete.svg"
+        }
+      },
+      {
+        "command": "gitflowplus-actions.publishFeatureBranch",
+        "title": "开始发布(功能分支合并到开发分支)",
+        "category": "GitFlowPlus",
+        "icon": {
+          "light": "res/light/goal.svg",
+          "dark": "res/dark/goal.svg"
+        }
+      },
+      {
+        "command": "gitflowplus-actions.publishBugfixBranch",
+        "title": "开始发布(修复分支合并到开发分支)",
+        "category": "GitFlowPlus",
+        "icon": {
+          "light": "res/light/goal.svg",
+          "dark": "res/dark/goal.svg"
+        }
+      },
+      {
+        "command": "gitflowplus-actions.releaseStart",
         "title": "Release: start",
-        "category": "Gitflow",
+        "category": "GitFlowPlus",
         "icon": {
           "light": "res/light/play.svg",
           "dark": "res/dark/play.svg"
         }
       },
       {
-        "command": "gitflow-actions.releaseFinish",
+        "command": "gitflowplus-actions.releaseFinish",
         "title": "Release: finish",
-        "category": "Gitflow",
+        "category": "GitFlowPlus",
         "icon": {
           "light": "res/light/goal.svg",
           "dark": "res/dark/goal.svg"
         }
       },
       {
-        "command": "gitflow-actions.hotfixStart",
+        "command": "gitflowplus-actions.hotfixStart",
         "title": "Hotfix: start",
-        "category": "Gitflow",
+        "category": "GitFlowPlus",
         "icon": {
           "light": "res/light/play.svg",
           "dark": "res/dark/play.svg"
         }
       },
       {
-        "command": "gitflow-actions.hotfixFinish",
+        "command": "gitflowplus-actions.hotfixFinish",
         "title": "Hotfix: finish",
-        "category": "Gitflow",
+        "category": "GitFlowPlus",
         "icon": {
           "light": "res/light/goal.svg",
           "dark": "res/dark/goal.svg"
+        }
+      },
+      {
+        "command": "gitflowplus-actions.featureRebase",
+        "title": "rebase分支",
+        "category": "GitFlowPlus",
+        "icon": {
+          "light": "res/light/refresh.svg",
+          "dark": "res/dark/refresh.svg"
+        }
+      },
+      {
+        "command": "gitflowplus-actions.bugfixRebase",
+        "title": "Bugfix: rebase",
+        "category": "GitFlowPlus",
+        "icon": {
+          "light": "res/light/refresh.svg",
+          "dark": "res/dark/refresh.svg"
         }
       }
     ],
     "configuration": {
       "properties": {
-        "gitflow-actions.deleteBranchOnFinish": {
+        "gitflowplus-actions.deleteBranchOnFinish": {
           "type": "boolean",
-          "default": true,
-          "description": "After finishing a branch, delete the branch"
+          "default": false,
+          "description": "发布完成删除本地分支"
         },
-        "gitflow-actions.deleteRemoteBranches": {
+        "gitflowplus-actions.deleteRemoteBranches": {
           "type": "boolean",
-          "default": true,
-          "description": "If true, and `gitflow-actions.deleteBranchOnFinish` is true, remote branches will be deleted when finishing a branch"
-        },
-        "gitflow-actions.default.development": {
-          "type": "string",
-          "default": "develop",
-          "description": "Default name for the development branch [develop]"
-        },
-        "gitflow-actions.default.production": {
-          "type": "string",
-          "default": "master",
-          "description": "Default name for the production branch [master]"
+          "default": false,
+          "description": "为 true, 且 `gitflowplus-actions.deleteBranchOnFinish` 也为 true, 发布完成即会删除远程分支"
         }
       }
     },
     "views": {
       "scm": [
         {
-          "id": "gitflowActionsTreeview",
-          "name": "Gitflow Actions"
+          "id": "gitFlowPlusActionsTreeview",
+          "name": "GitFlowPlus Actions"
         }
       ]
     },
+    "submenus": [
+      {
+        "id": "gitflowplus/title/actions",
+        "label": "GitFlowPlus",
+        "icon": "$(source-control)"
+      }
+    ],
     "menus": {
+      "gitflowplus/title/actions": [
+        {
+          "command": "gitflowplus-actions.createFeatureBranch",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitflowplus-actions.createBugfixBranch",
+          "group": "navigation@2"
+        },
+        {
+          "command": "gitflowplus-actions.startTestBranch",
+          "group": "navigation@3"
+        },
+        {
+          "command": "gitflowplus-actions.publishBranch",
+          "group": "navigation@4"
+        },
+        {
+          "command": "gitflowplus-actions.publishFinish",
+          "group": "navigation@5"
+        },
+        {
+          "command": "gitflowplus-actions.initialize",
+          "group": "navigation@6"
+        },
+        {
+          "command": "gitflowplus-actions.deleteBranch",
+          "group": "navigation@7"
+        }
+      ],
+      "editor/title": [
+        {
+          "submenu": "gitflowplus/title/actions",
+          "group": "navigation"
+        }
+      ],
       "view/title": [
         {
-          "command": "gitflow-actions.initialize",
+          "command": "gitflowplus-actions.initialize",
           "group": "navigation",
-          "when": "view == gitflowActionsTreeview"
+          "when": "view == gitFlowPlusActionsTreeview"
         }
       ],
       "view/item/context": [
         {
-          "command": "gitflow-actions.featureRebase",
+          "command": "gitflowplus-actions.featureRebase",
           "when": "viewItem == feature",
           "group": "inline@1"
         },
         {
-          "command": "gitflow-actions.featureStart",
+          "command": "gitflowplus-actions.createFeatureBranch",
           "when": "viewItem == feature",
           "group": "inline@2"
         },
         {
-          "command": "gitflow-actions.featureFinish",
+          "command": "gitflowplus-actions.publishFeatureBranch",
           "when": "viewItem == feature",
           "group": "inline@3"
         },
         {
-          "command": "gitflow-actions.bugfixRebase",
+          "command": "gitflowplus-actions.bugfixRebase",
           "when": "viewItem == bugfix",
           "group": "inline@1"
         },
         {
-          "command": "gitflow-actions.bugfixStart",
+          "command": "gitflowplus-actions.createBugfixBranch",
           "when": "viewItem == bugfix",
           "group": "inline@2"
         },
         {
-          "command": "gitflow-actions.bugfixFinish",
+          "command": "gitflowplus-actions.publishBugfixBranch",
           "when": "viewItem == bugfix",
           "group": "inline@3"
         },
         {
-          "command": "gitflow-actions.releaseStart",
+          "command": "gitflowplus-actions.releaseStart",
           "when": "viewItem == release",
           "group": "inline@1"
         },
         {
-          "command": "gitflow-actions.releaseFinish",
+          "command": "gitflowplus-actions.releaseFinish",
           "when": "viewItem == release",
           "group": "inline@2"
         },
         {
-          "command": "gitflow-actions.hotfixStart",
+          "command": "gitflowplus-actions.hotfixStart",
           "when": "viewItem == hotfix",
           "group": "inline@1"
         },
         {
-          "command": "gitflow-actions.hotfixFinish",
+          "command": "gitflowplus-actions.hotfixFinish",
           "when": "viewItem == hotfix",
           "group": "inline@2"
         }
       ],
       "commandPalette": [
         {
-          "command": "gitflow-actions.initialize",
+          "command": "gitflowplus-actions.initialize",
           "when": "false"
         },
         {
-          "command": "gitflow-actions.featureStart",
+          "command": "gitflowplus-actions.createFeatureBranch",
           "when": "false"
         },
         {
-          "command": "gitflow-actions.featureRebase",
+          "command": "gitflowplus-actions.featureRebase",
           "when": "false"
         },
         {
-          "command": "gitflow-actions.featureFinish",
+          "command": "gitflowplus-actions.publishFeatureBranch",
           "when": "false"
         },
         {
-          "command": "gitflow-actions.bugfixStart",
+          "command": "gitflowplus-actions.createBugfixBranch",
           "when": "false"
         },
         {
-          "command": "gitflow-actions.bugfixRebase",
+          "command": "gitflowplus-actions.bugfixRebase",
           "when": "false"
         },
         {
-          "command": "gitflow-actions.bugfixFinish",
+          "command": "gitflowplus-actions.publishBugfixBranch",
           "when": "false"
         },
         {
-          "command": "gitflow-actions.releaseStart",
+          "command": "gitflowplus-actions.releaseStart",
           "when": "false"
         },
         {
-          "command": "gitflow-actions.releaseFinish",
+          "command": "gitflowplus-actions.releaseFinish",
           "when": "false"
         },
         {
-          "command": "gitflow-actions.hotfixStart",
+          "command": "gitflowplus-actions.hotfixStart",
           "when": "false"
         },
         {
-          "command": "gitflow-actions.hotfixFinish",
+          "command": "gitflowplus-actions.hotfixFinish",
           "when": "false"
         }
       ]
     }
   },
   "scripts": {
-    "vscode:prepublish": "./node_modules/typescript/bin/tsc -p ./",
-    "compile": "./node_modules/typescript/bin/tsc -watch -p ./",
-    "postinstall": "node ./node_modules/vscode/bin/install"
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "vscode-test"
   },
   "devDependencies": {
-    "typescript": "^2.0.3",
-    "@types/node": "~7.0.31",
-    "mocha": "^3.2.0",
-    "@types/mocha": "^2.2.34",
-    "vscode": "^1.1.0"
+    "@types/vscode": "^1.92.0",
+    "@types/mocha": "^10.0.7",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^7.14.1",
+    "@typescript-eslint/parser": "^7.11.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.4.5",
+    "ts-loader": "^9.5.1",
+    "webpack": "^5.92.1",
+    "webpack-cli": "^5.1.4",
+    "@vscode/test-cli": "^0.0.9",
+    "@vscode/test-electron": "^2.4.0"
   }
 }

@@ -388,6 +388,7 @@ export namespace git {
     if (!!diff_res.retc) {
       return false;
     }
+
     const diff_index_res = await cmd.execute(info.path, [
       "diff-index",
       "--cached",
@@ -399,6 +400,7 @@ export namespace git {
     if (!!diff_index_res.retc) {
       return false;
     }
+
     return true;
   }
 
@@ -430,6 +432,51 @@ export namespace git {
     return cmd.executeRequired(info.path, ["checkout", ref]);
   }
 
+  export function deleteBranch(ref: BranchRef) {
+    return cmd.executeRequired(git.info.path, [
+      "branch",
+      "-D",
+      ref.name
+    ]);
+  }
+
+  export function deleteRemoteBranch(ref: BranchRef) {
+    return cmd.executeRequired(git.info.path, [
+      "push",
+      "origin",
+      "--delete",
+      ref.name
+    ]);
+  }
+
+  export function createAndCheckoutBranch(ref: BranchRef, base: BranchRef) {
+    return cmd.executeRequired(git.info.path, [
+      "checkout",
+      "-b",
+      ref.name,
+      base.name
+    ]);
+  }
+
+  export function pushBranch(branch: BranchRef) {
+    return cmd.executeRequired(git.info.path, [
+      "push",
+      "--set-upstream",
+      "origin",
+      branch.name
+    ]);
+  }
+
+  export function tagBranch(tagName: string, tagMessage: string) {
+    return cmd.executeRequired(git.info.path, [
+      "tag",
+      "-a",
+      tagName,
+      "-m",
+      tagMessage,
+    ]);
+  }
+  
   /**
    * Merge one branch into the currently checked out branch
    */
@@ -468,12 +515,12 @@ export namespace git {
 
     if (aref !== bref) {
       fail.error({
-        message: `Branch "${a.name}" has diverged from ${b.name}`,
+        message: `分支 "${a.name}" 和远程分支 ${b.name} 存在差异`,
         handlers: !offer_pull
           ? []
           : [
             {
-              title: "Pull now",
+              title: "是否现在 pull ?",
               cb: async function () {
                 git.pull(primaryRemote(), a);
               }
@@ -487,7 +534,7 @@ export namespace git {
     if (!(await isClean())) {
       fail.error({
         message:
-          "Unsaved changes detected. Please commit or stash your changes and try again"
+          "存在未提交的文件变动. 请 commit 或 stash 后再重试"
       });
     }
   }

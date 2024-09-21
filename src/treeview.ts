@@ -4,7 +4,7 @@ import * as path from "path";
 export function buildTreeView(context: vscode.ExtensionContext) {
   const treeProvider = new ExampleTreeProvider();
   vscode.window.registerTreeDataProvider(
-    "gitflowActionsTreeview",
+    "gitFlowPlusActionsTreeview",
     treeProvider
   );
   return treeProvider;
@@ -109,6 +109,7 @@ export class ExampleTreeProvider
 
   getChildren(element?: TreeItem): vscode.ProviderResult<TreeItem[]> {
     if (element === undefined) {
+      return [];
       return [...this.data];
     }
     return element.children;

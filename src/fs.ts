@@ -16,7 +16,7 @@ export namespace fs {
                 if (err) { reject(err); }
                 else { resolve(data); }
             });
-        })
+        });
     }
 
     export function writeFile(path: string, buf: any): Promise<void> {
@@ -26,6 +26,10 @@ export namespace fs {
                 else { resolve(); }
             });
         });
+    }
+
+    export function createOrWriteFile(path: string, content: string) {
+        nodefs.writeFileSync(path, content);
     }
 
     export function remove(path: string) {

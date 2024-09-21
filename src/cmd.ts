@@ -21,7 +21,7 @@ export namespace cmd {
       const rootPath: string =
         workspaceDirectory.length > 0 ? workspaceDirectory[0].uri.fsPath : "";
       options.cwd = options.cwd || rootPath;
-      console.log(`[gitflow] Execute ${command}`, args.join(" "));
+      console.log(`[gitflowplus] 命令: ${command}`, args.join(" "));
       const child = proc.spawn(command, args, options);
       child.on("error", err => {
         reject(err);

@@ -22,47 +22,96 @@ export namespace flow {
   /**
    * Get the release branch prefix
    */
-  export function releasePrefix() {
-    return git.config.get("gitflow.prefix.release");
+  export async function releasePrefix() {
+    const config = await getConfig();
+    return config["releasePrefix"];
   }
 
   /**
    * Get the tag prefix
    */
-  export function tagPrefix() {
-    return git.config.get("gitflow.prefix.versiontag");
+  export async function tagPrefix() {
+    const config = await getConfig();
+    return config["tagPrefix"];
   }
 
   /**
    * Get develop branch name
    */
-  export function developBranch(): Promise<git.BranchRef> {
-    return git.config
-      .get("gitflow.branch.develop")
-      .then(git.BranchRef.fromName);
+  export async function getConfigDevelopBranch(): Promise<git.BranchRef> {
+    const config = await getConfig();
+    return git.BranchRef.fromName(config["releaseBranch"]);
   }
 
   /**
    * Get the master branch name
    */
-  export function masterBranch(): Promise<git.BranchRef> {
-    return git.config.get("gitflow.branch.master").then(git.BranchRef.fromName);
+  export async function getConfigMasterBranch(): Promise<git.BranchRef> {
+    const config = await getConfig();
+    return git.BranchRef.fromName(config["masterBranch"]);
+  }
+
+  export async function getConfigTestBranch(): Promise<git.BranchRef> {
+    const config = await getConfig();
+    return git.BranchRef.fromName(config["testBranch"]);
   }
 
   export async function flowEnabled(): Promise<boolean> {
-    const master = await git.config.get("gitflow.branch.master");
-    const develop = await git.config.get("gitflow.branch.develop");
-    return !!master && !!develop;
+    const configFilePath = await getConfigFilePath();
+    if (configFilePath === null) {
+      return false;
+    }
+
+    return await fs.exists(configFilePath);
+  }
+
+  export async function getConfig(): Promise<any> {
+    const configPath = await getConfigFilePath();
+    if (configPath === null) {
+      return {};
+    }
+
+    if (!await fs.exists(configPath)) {
+      return {};
+    }
+
+    const content = await fs.readFile(configPath);
+    return JSON.parse(content.toString());
+  }
+
+  export async function writeConfig(config: object) {
+    const configPath = await getConfigFilePath();
+    if (configPath === null) {
+      return;
+    }
+
+    fs.createOrWriteFile(configPath, JSON.stringify(config, null, "  "));
+  }
+
+  export async function getConfigFilePath(): Promise<string | null> {
+    const rootFolders = vscode.workspace.workspaceFolders;
+    if (rootFolders === undefined) {
+      return null;
+    }
+
+    if (rootFolders.length === 0) {
+      return null;
+    }
+
+    if (rootFolders?.length > 1) {
+      return null;
+    }
+    return rootFolders[0].uri.fsPath + "/git-flow-plus.config";
   }
 
   export async function requireFlowEnabled() {
     if (!(await flowEnabled())) {
       // Ask the user to enable gitflow
       fail.error({
-        message: "Gitflow is not initialized for this project",
+        message: "该项目尚未初始化 GitflowPlus",
         handlers: [
           {
-            title: "Enable now",
+            title: "现在初始化",
             cb: flow.initialize
           }
         ]
@@ -81,10 +130,10 @@ export namespace flow {
 
   export function throwNotInitializedError(): never {
     throw fail.error({
-      message: "Gitflow has not been initialized for this repository",
+      message: "该仓库尚未初始化 GitflowPlus",
       handlers: [
         {
-          title: "Initialize",
+          title: "现在初始化",
           cb() {
             return flow.initialize();
           }
@@ -93,40 +142,78 @@ export namespace flow {
     });
   }
 
-  export async function initialize() {
-    console.log("Init");
-    if (await flowEnabled()) {
-      const do_reinit = !!(await vscode.window.showWarningMessage(
-        "Gitflow has already been initialized for this repository. Would you like to re-initialize?",
-        "Yes"
-      ));
-      if (!do_reinit) {return;}
+  export async function deleteBranch() {
+    const shouldContinue = !!(await vscode.window.showWarningMessage("即将删除当前分支,是否继续?", "是"));
+    if (!shouldContinue) {
+      return;
     }
 
-    const branchNonEmpty = (str: any) => (!!str ? "" : "A branch name is required");
-    const master_name = await vscode.window.showInputBox({
-      prompt: "Enter a name for the production branch",
-      value: config.default_production,
+    return withProgress(
+      {
+        location: vscode.ProgressLocation.Window,
+        title: "删除当前分支"
+      },
+      async pr => {
+        const currentBranch = await git.currentBranch();
+        if (!currentBranch) {
+          throw fail.error({ message: "获取当前分支失败!" });
+        }
+
+        const master = await getConfigMasterBranch();
+        await git.checkout(master);
+
+        pr.report({ message: `正在删除本地 ${currentBranch.name} 分支...` });
+        await git.deleteBranch(currentBranch);
+
+        const remote = git.primaryRemote();
+        const remoteBranch = currentBranch.remoteAt(remote);
+        if (await remoteBranch.exists()) {
+          pr.report({
+            message: `正在删除远程 ${remote.name}/${remoteBranch.name}分支...`
+          });
+          git.deleteRemoteBranch(currentBranch);
+        }
+
+        vscode.window.showInformationMessage(`分支 "${currentBranch.name}" 删除成功!`);
+      });
+  }
+
+  export async function initialize() {
+    console.log("初始化 GitFlowPlus");
+    if (await flowEnabled()) {
+      const doReinit = !!(await vscode.window.showWarningMessage(
+        "当前仓库 GitFlowPlus 已经初始化. 是否需要再次初始化?",
+        "是"
+      ));
+      if (!doReinit) { return; }
+    }
+
+    const branchNonEmpty = (str: any) => (!!str ? "" : "请输入分支名");
+
+    const masterName = await vscode.window.showInputBox({
+      prompt: "请输入主干分支名字",
+      value: "master",
       validateInput: branchNonEmpty
     });
-    if (!master_name) {return;}
-    const develop_name = await vscode.window.showInputBox({
-      prompt: "Enter a name for the development branch",
-      value: config.default_development,
+    if (!masterName) { return; }
+
+    const developName = await vscode.window.showInputBox({
+      prompt: "请输入发布分支名字",
+      value: "develop",
       validateInput: branchNonEmpty
     });
-    if (!develop_name) {return;}
-    if (master_name === develop_name) {
+    if (!developName) { return; }
+
+    if (masterName === developName) {
       fail.error({
-        message: "Production and development branches must differ"
+        message: "主干分支和开发分支名字不能相同"
       });
     }
 
-    const develop = git.BranchRef.fromName(develop_name);
-    const master = git.BranchRef.fromName(master_name);
+    const develop = git.BranchRef.fromName(developName);
+    const master = git.BranchRef.fromName(masterName);
 
-    const remote_develop = git.BranchRef.fromName("origin/" + develop_name);
-    const remote_master = git.BranchRef.fromName("origin/" + master_name);
+    const remoteDevelop = git.BranchRef.fromName("origin/" + developName);
 
     // Check if the repository needs to be initialized before we proceed
     if (
@@ -144,6 +231,7 @@ export namespace flow {
         "HEAD",
         `refs/heads/${master.name}`
       ]);
+
       await cmd.executeRequired(git.info.path, [
         "commit",
         "--allow-empty",
@@ -155,13 +243,13 @@ export namespace flow {
 
     // Ensure the develop branch exists
     if (!(await develop.exists())) {
-      if (await remote_develop.exists()) {
+      if (await remoteDevelop.exists()) {
         // If there is a remote with the branch, set up our local copy to track
         // that one
         cmd.executeRequired(git.info.path, [
           "branch",
           develop.name,
-          remote_develop.name
+          remoteDevelop.name
         ]);
       } else {
         // Otherwise, create it on top of the master branch
@@ -176,31 +264,42 @@ export namespace flow {
       await git.checkout(develop);
     }
 
+    const configObj: any = {};
+
     // Create the branch prefixes and store those in git config
-    for (const what of ["bugfix", "feature", "release", "hotfix", "support"]) {
+    for (const what of ["feature", "hotfix"]) {
       const prefix = await vscode.window.showInputBox({
-        prompt: `Enter a prefix for "${what}" branches`,
+        prompt: `请输入 "${what}" 分支前缀`,
         value: `${what}/`,
         validateInput: branchNonEmpty
       });
-      if (!prefix) {return;}
-      await git.config.set(`gitflow.prefix.${what}`, prefix);
+      if (!prefix) { return; }
+
+      configObj[what + "Prefix"] = prefix;
     }
 
-    const version_tag_prefix = await vscode.window.showInputBox({
-      prompt: "Enter a prefix for version tags (optional)"
+    const versionTagPrefix = await vscode.window.showInputBox({
+      prompt: "输入 Tag 名称前缀 (可选)"
     });
-    if (version_tag_prefix === null) {return;}
-    await git.config.set("gitflow.prefix.versiontag", version_tag_prefix);
+    if (versionTagPrefix) {
+      configObj["tagPrefix"] = versionTagPrefix;
+    } else {
+      configObj["tagPrefix"] = "";
+    }
 
     // Set the main branches, and gitflow is officially 'enabled'
-    await git.config.set("gitflow.branch.master", master.name);
-    await git.config.set("gitflow.branch.develop", develop.name);
+    configObj["masterBranch"] = master.name;
+    configObj["releaseBranch"] = develop.name;
+
+    const config = await getConfig();
+    Object.assign(config, configObj);
+
+    writeConfig(config);
 
     console.assert(await flowEnabled());
 
     vscode.window.showInformationMessage(
-      "Gitflow has been initialized for this repository!"
+      "GitFlowPlus 已完成初始化!"
     );
   }
 }
@@ -209,63 +308,118 @@ export namespace flow.feature {
   /**
    * Get the feature/bugfix branch prefix
    */
-  export function prefix(branchType: string) {
-    return git.config.get(`gitflow.prefix.${branchType}`);
+  export async function prefix(branchType: string): Promise<string> {
+    const config = await getConfig();
+    return config[branchType];
   }
 
   /**
    * Get the current feature/bugfix branch as well as its name.
    */
-  export async function current(
-    msg: string = "Not working on a feature or bugfix branch",
-    branchType: string
-  ) {
-    const current_branch = await git.currentBranch();
+  export async function current(msg: string = "当前并不是开发或修复分支", branchType: string) {
+    const currentBranch = await git.currentBranch();
+
     const prefix = await feature.prefix(branchType);
     if (!prefix) {
       throw throwNotInitializedError();
     }
-    if (!current_branch || !current_branch.name.startsWith(prefix)) {
+
+    if (!currentBranch || !currentBranch.name.startsWith(prefix)) {
       throw fail.error({ message: msg });
     }
-    const name = current_branch.name.substr(prefix.length);
-    return { branch: current_branch, name: name };
+    const name = currentBranch.name.substr(prefix.length);
+    return { branch: currentBranch, name: name };
   }
 
   export async function precheck() {
-    const local_develop = await developBranch();
-    const remote_develop = git.BranchRef.fromName(
-      `origin/${local_develop.name}`
-    );
-    const local_ref = await local_develop.ref();
-    if (await remote_develop.exists()) {
-      await git.requireEqual(local_develop, remote_develop, true);
+    const localDevelop = await getConfigDevelopBranch();
+    const remoteDevelop = git.BranchRef.fromName(`origin/${localDevelop.name}`);
+
+    await localDevelop.ref();
+
+    if (await remoteDevelop.exists()) {
+      await git.requireEqual(localDevelop, remoteDevelop, true);
     }
   }
 
-  export async function start(feature_name: string, branchType: string) {
-    console.assert(!!feature_name);
+  export async function createBranch(branchName: string, branchType: string) {
+    console.assert(!!branchName);
+
     await requireFlowEnabled();
+
     const prefix = await feature.prefix(branchType);
     if (!prefix) {
       throw throwNotInitializedError();
     }
-    const new_branch = git.BranchRef.fromName(`${prefix}${feature_name}`);
-    await requireNoSuchBranch(new_branch, {
-      message: `The ${branchType} "${feature_name}" already exists`
-    });
 
-    // Create our new branch
-    const local_develop = await developBranch();
-    await cmd.executeRequired(git.info.path, [
-      "checkout",
-      "-b",
-      new_branch.name,
-      local_develop.name
-    ]);
-    vscode.window.showInformationMessage(
-      `New branch "${new_branch.name}" was created`
-    );
+    const newBranch = git.BranchRef.fromName(`${prefix}${branchName}`);
+    await requireNoSuchBranch(newBranch, { message: `${branchType} "${branchName}" 分支已存在!` });
+
+    // 基于master创建分支
+    const localMaster = await getConfigMasterBranch();
+
+    await git.createAndCheckoutBranch(newBranch, localMaster);
+
+    // 推送到远程
+    await git.pushBranch(newBranch);
+
+    vscode.window.showInformationMessage(`新分支 "${newBranch.name}" 创建并推送成功!`);
+  }
+
+  export async function startTestBranch() {
+    return withProgress(
+      {
+        location: vscode.ProgressLocation.Window,
+        title: `提测`
+      },
+      async pr => {
+        await requireFlowEnabled();
+
+        pr.report({ message: "正在检查分支..." });
+        await git.requireClean();
+
+        const currentBranch = await git.currentBranch();
+        if (!currentBranch) {
+          throw fail.error({ message: "获取当前分支失败!" });
+        }
+
+        const featurePrefix = await feature.prefix("featurePrefix");
+        const hotfixPrefix = await feature.prefix("hotfixPrefix");
+
+        if (!currentBranch.name.startsWith(featurePrefix) && !currentBranch.name.startsWith(hotfixPrefix)) {
+          fail.error({ message: `必须处于希望提测的功能/修复分支下` });
+        }
+
+        const testBranch = await getConfigTestBranch();
+        const remoteTestBranch = testBranch.remoteAt(git.primaryRemote());
+        if (!(await remoteTestBranch.exists())) {
+          fail.error({ message: `远程 ${remoteTestBranch.name} 分支不存在` });
+        }
+
+        const shouldContinue = !!(await vscode.window.showWarningMessage("即将提测,是否继续?", "是"));
+        if (!shouldContinue) {
+          return;
+        }
+
+        await git.requireEqual(testBranch, remoteTestBranch, true);
+
+        pr.report({ message: `正在切换到 ${testBranch.name} 分支...` });
+        
+        await git.checkout(testBranch);
+
+        pr.report({ message: `正在合并当前 ${currentBranch.name} 分支到测试分支 ${testBranch.name}...` });
+
+        const result = await git.merge(currentBranch);
+        if (result.retc) {
+          fail.error({ message: `合并到 ${testBranch.name} 时出现冲突. 请解决后再重试` });
+        }
+
+        await git.pushBranch(testBranch);
+
+        await git.checkout(currentBranch);
+
+        vscode.window.showInformationMessage(`当前分支 ${currentBranch.name} 已合并到测试分支 ${testBranch.name} 并已推送,提测成功!`);
+      });
   }
 
   /**
@@ -279,15 +433,15 @@ export namespace flow.feature {
     );
 
     const remote = feature_branch.remoteAt(git.primaryRemote());
-    const develop = await developBranch();
+    const develop = await getConfigDevelopBranch();
     if ((await remote.exists()) && !(await git.isMerged(remote, develop))) {
       const do_rebase = !!(await vscode.window.showWarningMessage(
         `A remote branch for ${feature_branch.name} exists, and rebasing ` +
-          `will rewrite history for this branch that may be visible to ` +
-          `other users!`,
+        `will rewrite history for this branch that may be visible to ` +
+        `other users!`,
         "Rebase anyway"
       ));
-      if (!do_rebase) {return;}
+      if (!do_rebase) { return; }
     }
 
     await git.requireClean();
@@ -308,106 +462,101 @@ export namespace flow.feature {
       `${feature_branch.name} has been rebased onto ${develop.name}`
     );
   }
+  export async function publishCurrentBranch() {
+    await requireFlowEnabled();
 
-  export async function finish(branchType: string) {
+    const currentBranch = await git.currentBranch();
+
+    const featurePrefix = await feature.prefix("featurePrefix");
+    const hotfixPrefix = await feature.prefix("hotfixPrefix");
+
+    if (currentBranch?.name.startsWith(featurePrefix)) {
+      await publishBranch("featurePrefix");
+    } else if (currentBranch?.name.startsWith(hotfixPrefix)) {
+      await publishBranch("hotfixPrefix");
+    } else {
+      throw fail.error({ message: `必须处于希望发布的功能/修复分支下` });
+    }
+  }
+
+  export async function publishBranch(branchType: string) {
     return withProgress(
       {
         location: vscode.ProgressLocation.Window,
-        title: `Finishing ${branchType}`
+        title: `发布分支`
       },
       async pr => {
-        pr.report({ message: "Getting current branch..." });
-        const { branch: feature_branch, name: feature_name } = await current(
-          `You must checkout the ${branchType} branch you wish to finish`,
+        pr.report({ message: "正在获取当前分支..." });
+        const { branch: currentBranch } = await current(
+          `必须处于希望发布的功能/修复分支下`,
           branchType
         );
 
-        pr.report({ message: "Checking for cleanliness..." });
-        const is_clean = await git.isClean();
+        pr.report({ message: "正在检查当前分支情况..." });
+        const isClean = await git.isClean();
 
-        pr.report({ message: "Checking for incomplete merge..." });
-        const merge_base_file = path.join(gitflowDir, "MERGE_BASE");
-        if (await fs.exists(merge_base_file)) {
-          const merge_base = git.BranchRef.fromName(
-            (await fs.readFile(merge_base_file)).toString()
-          );
-          if (is_clean) {
-            // The user must have resolved the conflict themselves, so
-            // all we need to do is delete the merge file
-            await fs.remove(merge_base_file);
-            if (await git.isMerged(feature_branch, merge_base)) {
-              // The user already merged this feature branch. We'll just exit!
-              await finishCleanup(feature_branch, branchType);
-              return;
-            }
+        pr.report({ message: "正在检查是否有未完成的合并..." });
+        const mergeBaseFile = path.join(gitflowDir, "MERGE_BASE");
+        if (await fs.exists(mergeBaseFile)) {
+          if (isClean) {
+            await fs.remove(mergeBaseFile);
           } else {
-            // They have an unresolved merge conflict. Tell them what they must do
-            fail.error({
-              message: `You have merge conflicts! Resolve them before trying to finish ${branchType} branch.`
-            });
+            fail.error({ message: `存在合并冲突! 请先解决冲突后再重试.` });
           }
         }
 
         await git.requireClean();
 
-        pr.report({ message: "Checking remotes..." });
-        const all_branches = await git.BranchRef.all();
+        const shouldContinue = !!(await vscode.window.showWarningMessage("即将开始发布,是否继续?", "是"));
+        if (!shouldContinue) {
+          return;
+        }
+
+        pr.report({ message: "正在检查远程分支..." });
+        const allBranches = await git.BranchRef.all();
         // Make sure that the local feature and the remote feature haven't diverged
-        const remote_branch = all_branches.find(
-          br => br.name === "origin/" + feature_branch.name
+        const remoteBranch = allBranches.find(
+          br => br.name === "origin/" + currentBranch.name
         );
-        if (remote_branch) {
-          await git.requireEqual(feature_branch, remote_branch, true);
+        if (!remoteBranch) {
+          fail.error({ message: `当前分支不存在关联的远程分支` });
+          return;
         }
+
+        await git.requireEqual(currentBranch, remoteBranch, true);
+
         // Make sure the local develop and remote develop haven't diverged either
-        const develop = await developBranch();
-        const remote_develop = git.BranchRef.fromName("origin/" + develop.name);
-        if (await remote_develop.exists()) {
-          await git.requireEqual(develop, remote_develop, true);
+        const develop = await getConfigDevelopBranch();
+        const remoteDevelop = git.BranchRef.fromName("origin/" + develop.name);
+        if (!(await remoteDevelop.exists())) {
+          fail.error({ message: `发布分支 ${remoteDevelop.name} 不存在` });
         }
 
-        pr.report({
-          message: `Merging ${feature_branch.name} into ${develop}...`
-        });
-        // Switch to develop and merge in the feature branch
+        await git.requireEqual(develop, remoteDevelop, true);
+
+        if (await git.isMerged(currentBranch, develop)) {
+          const shouldContinue = !!(await vscode.window.showWarningMessage("分支已经合并过,是否继续?", "是"));
+          if (!shouldContinue) {
+            return;
+          }
+        }
+
+        pr.report({ message: `正在合并当前 ${currentBranch.name} 分支到发布分支 ${develop.name}...` });
+
         await git.checkout(develop);
-        const result = await cmd.execute(git.info.path, [
-          "merge",
-          "--no-ff",
-          feature_branch.name
-        ]);
-        if (result.retc) {
-          // Merge conflict. Badness
-          await fs.writeFile(gitflowDir, develop.name);
-          fail.error({
-            message: `There were conflicts while merging into ${develop.name}. Fix the issues before trying to finish the ${branchType} branch`
-          });
-        }
-        pr.report({ message: "Cleaning up..." });
-        await finishCleanup(feature_branch, branchType);
-      }
-    );
-  }
 
-  async function finishCleanup(branch: git.BranchRef, branchType: string) {
-    console.assert(await branch.exists());
-    console.assert(await git.isClean());
-    const origin = git.RemoteRef.fromName("origin");
-    const remote = git.BranchRef.fromName(origin.name + "/" + branch.name);
-    if (config.deleteBranchOnFinish) {
-      if (config.deleteRemoteBranches && (await remote.exists())) {
-        // Delete the branch on the remote
-        await git.push(
-          git.RemoteRef.fromName("origin"),
-          git.BranchRef.fromName(`:refs/heads/${branch.name}`)
-        );
+        const result = await git.merge(currentBranch);
+        if (result.retc) {
+          await fs.writeFile(mergeBaseFile, develop.name);
+          fail.error({ message: `合并到 ${develop.name} 时出现冲突. 请解决后再重试` });
+        }
+
+        await git.pushBranch(develop);
+
+        await git.checkout(currentBranch);
+
+        vscode.window.showInformationMessage(`当前分支 ${currentBranch.name} 已合并到发布分支 ${develop.name} 并已推送,开始发布操作成功!`);
       }
-      await cmd.executeRequired(git.info.path, ["branch", "-d", branch.name]);
-    }
-    vscode.window.showInformationMessage(
-      `${branchType.substring(0, 1).toUpperCase()}${branchType.substring(
-        1
-      )} branch ${branch.name} has been closed`
     );
   }
 }
@@ -425,7 +574,7 @@ export namespace flow.release {
   export async function precheck() {
     await git.requireClean();
 
-    const develop = await developBranch();
+    const develop = await getConfigDevelopBranch();
     const remote_develop = develop.remoteAt(git.primaryRemote());
     if (await remote_develop.exists()) {
       await git.requireEqual(develop, remote_develop);
@@ -467,7 +616,7 @@ export namespace flow.release {
 
     const prefix = await releasePrefix();
     const new_branch = git.BranchRef.fromName(`${prefix}${name}`);
-    const develop = await developBranch();
+    const develop = await getConfigDevelopBranch();
     await cmd.executeRequired(git.info.path, [
       "checkout",
       "-b",
@@ -476,8 +625,105 @@ export namespace flow.release {
     ]);
     await vscode.window.showInformationMessage(
       `New branch ${new_branch.name} has been created. ` +
-        `Now is the time to update your version numbers and fix any ` +
-        `last minute bugs.`
+      `Now is the time to update your version numbers and fix any ` +
+      `last minute bugs.`
+    );
+  }
+
+  export async function publishFinish() {
+    await requireFlowEnabled();
+
+    const currentBranch = await git.currentBranch();
+    if (!currentBranch) {
+      throw fail.error({ message: "获取当前分支失败!" });
+    }
+
+    await publishBranchFinish(currentBranch);
+  }
+
+  export async function publishBranchFinish(currentBranch: git.BranchRef) {
+    return withProgress(
+      {
+        location: vscode.ProgressLocation.Window,
+        title: "完成发布"
+      },
+      async pr => {
+        const featurePrefix = await feature.prefix("featurePrefix");
+        const hotfixPrefix = await feature.prefix("hotfixPrefix");
+
+        if (!currentBranch.name.startsWith(featurePrefix) && !currentBranch.name.startsWith(hotfixPrefix)) {
+          throw fail.error({ message: `必须处于希望发布的开发/修复分支下` });
+        }
+
+        pr.report({ message: "正在检查分支..." });
+        await git.requireClean();
+
+        const master = await getConfigMasterBranch();
+        const remoteMaster = master.remoteAt(git.primaryRemote());
+        if (!(await remoteMaster.exists())) {
+          fail.error({ message: `远程 ${remoteMaster.name} 分支不存在` });
+        }
+
+        await git.requireEqual(master, remoteMaster);
+
+        const develop = await getConfigDevelopBranch();
+        const remoteDevelop = develop.remoteAt(git.primaryRemote());
+        if (!(await remoteDevelop.exists())) {
+          fail.error({ message: `远程 ${remoteDevelop.name} 分支不存在` });
+        }
+
+        await git.requireEqual(develop, remoteDevelop);
+
+        if (!(await git.isMerged(currentBranch, develop))) {
+          fail.error({ message: `请先点击开发发布!` });
+        }
+
+        // Get the name of the tag we will use. Default is the branch's flow name
+        pr.report({ message: "获取 Tag 信息..." });
+        const tagName = await vscode.window.showInputBox({ prompt: "请输入 Tag 名称" });
+        if (!tagName) { return; }
+
+        const tagMessage = await vscode.window.showInputBox({ prompt: "请输入 Tag 描述" });
+        if (!tagMessage) { return; }
+
+        // Now the crux of the logic, after we've done all our sanity checking
+        pr.report({ message: "正在切换到 master..." });
+        await git.checkout(master);
+
+        // Merge develop into the master branch
+        pr.report({ message: `正在合并 ${develop.name} 到 ${master.name}...` });
+        await git.merge(develop);
+
+        // Create a tag for the release
+        pr.report({ message: `正在为 ${master.name} 打标签...` });
+
+        await git.tagBranch(tagName, tagMessage);
+
+        const remote = git.primaryRemote();
+        pr.report({
+          message: `正在推送 master 到远程 ${remote.name}/${master.name}...`
+        });
+        await git.push(remote, master);
+
+        pr.report({ message: `正在推送 Tag ...` });
+        await cmd.executeRequired(git.info.path, ["push", "--tags", remote.name]);
+
+        if (config.deleteBranchOnFinish) {
+          pr.report({ message: `正在删除本地 ${currentBranch.name} 分支...` });
+          await git.deleteBranch(currentBranch);
+
+          if (config.deleteRemoteBranches) {
+            const remoteBranch = currentBranch.remoteAt(remote);
+
+            if (await remoteBranch.exists()) {
+              pr.report({ message: `正在删除远程 ${remote.name}/${remoteBranch.name} 分支...` });
+              await git.deleteRemoteBranch(currentBranch);
+            }
+          }
+        }
+
+        vscode.window.showInformationMessage(`${develop.name} 已合并到 ${master.name} 并已推送,完成发布操作成功!`);
+      }
     );
   }
 
@@ -519,7 +765,7 @@ export namespace flow.release {
             handlers: [
               {
                 title: `Checkout ${branch.name} and continue.`,
-                cb: async function() {
+                cb: async function () {
                   await git.checkout(branch);
                   await reenter();
                 }
@@ -532,13 +778,13 @@ export namespace flow.release {
         await git.requireClean();
 
         pr.report({ message: "Checking remotes..." });
-        const master = await masterBranch();
+        const master = await getConfigMasterBranch();
         const remote_master = master.remoteAt(git.primaryRemote());
         if (await remote_master.exists()) {
           await git.requireEqual(master, remote_master);
         }
 
-        const develop = await developBranch();
+        const develop = await getConfigDevelopBranch();
         const remote_develop = develop.remoteAt(git.primaryRemote());
         if (await remote_develop.exists()) {
           await git.requireEqual(develop, remote_develop);
@@ -549,7 +795,7 @@ export namespace flow.release {
         const tag_message = await vscode.window.showInputBox({
           prompt: "Enter a tag message (optional)"
         });
-        if (tag_message === undefined) {return;}
+        if (tag_message === undefined) { return; }
 
         // Now the crux of the logic, after we've done all our sanity checking
         pr.report({ message: "Switching to master..." });
@@ -673,7 +919,7 @@ export namespace flow.hotfix {
 
     await git.requireClean();
 
-    const master = await masterBranch();
+    const master = await getConfigMasterBranch();
     const remote_master = master.remoteAt(git.primaryRemote());
     if (await remote_master.exists()) {
       await git.requireEqual(master, remote_master);
