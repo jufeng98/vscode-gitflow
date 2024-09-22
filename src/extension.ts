@@ -5,6 +5,7 @@ import { findGit, git } from "./git";
 import { flow } from "./flow";
 import { fail } from "./fail";
 import { buildTreeView } from "./treeview";
+import * as myLang from "./language";
 
 async function runWrapped<T>(fn: (...arg0: any[]) => Thenable<T>, args: any[] = []): Promise<T | null> {
   try {
@@ -26,17 +27,12 @@ async function runWrapped<T>(fn: (...arg0: any[]) => Thenable<T>, args: any[] = 
   }
 }
 
-async function setup(disposables: vscode.Disposable[]) {
+async function setup(): Promise<vscode.Disposable[]> {
   const pathHint = vscode.workspace.getConfiguration("git").get<string>("path");
   git.info = await findGit(pathHint);
-  vscode.window.setStatusBarMessage(
-    "gitflow using git executable: " +
-    git.info.path +
-    " with version " +
-    git.info.version,
-    5000
-  );
-  const commands = [
+  vscode.window.setStatusBarMessage(`GitFlowPlus 使用的 git 路径:${git.info.path},版本:${git.info.version}`, 8000);
+
+  return [
     vscode.commands.registerCommand("gitflowplus-actions.initialize", async () => {
       await runWrapped(flow.initialize);
     }),
@@ -85,7 +81,7 @@ async function setup(disposables: vscode.Disposable[]) {
     vscode.commands.registerCommand("gitflowplus-actions.deleteBranch", async () => {
       await runWrapped(flow.deleteBranch);
     }),
-    
+
     vscode.commands.registerCommand("gitflowplus-actions.publishFeatureBranch", async () => {
       await runWrapped(flow.feature.publishBranch, ["featurePrefix"]);
     }),
@@ -137,22 +133,20 @@ async function setup(disposables: vscode.Disposable[]) {
     vscode.commands.registerCommand("gitflowplus-actions.bugfixRebase", async () => {
       await runWrapped(flow.feature.rebase, ["bugfix"]);
     }),
+
+    vscode.languages.registerDefinitionProvider(['json'], new myLang.MyDefinitionProvider()),
+    vscode.languages.registerCompletionItemProvider(['javascript'], new myLang.MyCompletionItemProvider(), '.'),
+    vscode.languages.registerHoverProvider('json', new myLang.MyHoverProvider()),
   ];
-  // add disposable
-  disposables.push(...commands);
 }
 
-export function activate(context: vscode.ExtensionContext) {
-  const disposables: vscode.Disposable[] = [];
+export async function activate(context: vscode.ExtensionContext) {
+  const disposables = await setup();
+
   buildTreeView(context);
-  context.subscriptions.push(
-    new vscode.Disposable(() =>
-      vscode.Disposable.from(...disposables).dispose()
-    )
-  );
 
-  setup(disposables).catch(err => console.error(err));
+  context.subscriptions.push(...disposables);
 }
 
-export function // tslint:disable-next-line:no-empty
-  deactivate() { }
+// tslint:disable-next-line:no-empty
+export function deactivate() { }

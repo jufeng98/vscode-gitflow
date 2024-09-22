@@ -14,9 +14,8 @@ const withProgress = vscode.window.withProgress;
 
 export namespace flow {
   const workspaceDirectory = vscode.workspace.workspaceFolders || [];
-  const rootPath: string =
-    workspaceDirectory.length > 0 ? workspaceDirectory[0].uri.fsPath : "";
-  export const gitDir = path.join(rootPath!, ".git");
+  const rootPath: string = workspaceDirectory.length > 0 ? workspaceDirectory[0].uri.fsPath : "";
+  export const gitDir = path.join(rootPath, ".git");
   export const gitflowDir = path.join(gitDir, ".gitflow");
 
   /**
@@ -89,19 +88,11 @@ export namespace flow {
   }
 
   export async function getConfigFilePath(): Promise<string | null> {
-    const rootFolders = vscode.workspace.workspaceFolders;
-    if (rootFolders === undefined) {
+    if (rootPath === "") {
       return null;
     }
 
-    if (rootFolders.length === 0) {
-      return null;
-    }
-
-    if (rootFolders?.length > 1) {
-      return null;
-    }
-    return rootFolders[0].uri.fsPath + "/git-flow-plus.config";
+    return rootPath + "/git-flow-plus.config";
   }
 
   export async function requireFlowEnabled() {
@@ -355,18 +346,18 @@ export namespace flow.feature {
         if (!prefix) {
           throw throwNotInitializedError();
         }
-    
+
         const newBranch = git.BranchRef.fromName(`${prefix}${branchName}`);
         await requireNoSuchBranch(newBranch, { message: `${branchType} "${branchName}" 分支已存在!` });
-    
+
         const localMaster = await getConfigMasterBranch();
-        
+
         pr.report({ message: `基于 ${localMaster.name} 创建新分支...` });
         await git.createAndCheckoutBranch(newBranch, localMaster);
-    
+
         // 推送到远程
         await git.pushBranch(newBranch);
-    
+
         vscode.window.showInformationMessage(`基于 ${localMaster.name} 创建新分支 "${newBranch.name}" 成功并已推送!`);
       });
   }
@@ -406,7 +397,7 @@ export namespace flow.feature {
         await git.requireEqual(testBranch, remoteTestBranch);
 
         pr.report({ message: `正在切换到 ${testBranch.name} 分支...` });
-        
+
         await git.checkout(testBranch);
 
         pr.report({ message: `正在合并当前 ${currentBranch.name} 分支到测试分支 ${testBranch.name}...` });

@@ -345,7 +345,13 @@
           "when": "false"
         }
       ]
-    }
+    },
+    "snippets": [
+      {
+        "language": "javascript",
+        "path": "./snippets/javascript.json"
+        }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
@@ -356,7 +362,8 @@
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "publish": "vsce package"
   },
   "devDependencies": {
     "@types/vscode": "^1.92.0",
