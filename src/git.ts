@@ -193,7 +193,8 @@ export namespace git {
         .filter(line => !!line.length)
         .map(line => line.trim())
         .reduce((acc, name) => {
-          if (!(name in acc)) acc.push(name);
+          if (!(name in acc)) { acc.push(name); }
+          
           return acc;
         }, [] as string[])
         .map(name => new TagRef(name));
@@ -265,7 +266,8 @@ export namespace git {
         .map(line => line.trim())
         .map(line => line.replace(/^\* /, ""))
         .reduce((acc, name) => {
-          if (!(name in acc)) acc.push(name);
+          if (!(name in acc)) { acc.push(name); }
+          
           return acc;
         }, [] as string[])
         .map(name => new BranchRef(name));
@@ -463,7 +465,7 @@ export namespace git {
     return cmd.executeRequired(git.info.path, [
       "push",
       "--set-upstream",
-      "origin",
+      originRemote().name,
       branch.name
     ]);
   }
@@ -489,6 +491,7 @@ export namespace git {
     branch: BranchRef;
     onto: BranchRef;
   }
+
   /**
    * Rebase one branch onto another
    */
@@ -509,13 +512,11 @@ export namespace git {
 
     // 如果 local 分支不是最新的,则 pull
     if (aref !== bref) {
-      const currentBranch = await git.currentBranch();
-
-      await git.checkout(local);
-
-      await cmd.execute(info.path, ["pull"]);
-
-      await git.checkout(currentBranch);
+      await cmd.execute(info.path, [
+        "pull",
+        originRemote().name,
+        `${local.name}:${local.name}`,
+      ]);
     }
   }
 
@@ -528,7 +529,7 @@ export namespace git {
     }
   }
 
-  export function primaryRemote() {
+  export function originRemote() {
     return RemoteRef.fromName("origin");
   }
 }

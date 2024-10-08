@@ -153,7 +153,7 @@ export namespace flow {
         pr.report({ message: `正在删除本地 ${currentBranch.name} 分支...` });
         await git.deleteBranch(currentBranch);
 
-        const remote = git.primaryRemote();
+        const remote = git.originRemote();
         const remoteBranch = currentBranch.remoteAt(remote);
         if (await remoteBranch.exists()) {
           pr.report({
@@ -384,7 +384,7 @@ export namespace flow.feature {
         }
 
         const testBranch = await getConfigTestBranch();
-        const remoteTestBranch = testBranch.remoteAt(git.primaryRemote());
+        const remoteTestBranch = testBranch.remoteAt(git.originRemote());
         if (!(await remoteTestBranch.exists())) {
           fail.error({ message: `远程 ${remoteTestBranch.name} 分支不存在` });
         }
@@ -425,7 +425,7 @@ export namespace flow.feature {
       branchType
     );
 
-    const remote = feature_branch.remoteAt(git.primaryRemote());
+    const remote = feature_branch.remoteAt(git.originRemote());
     const develop = await getConfigDevelopBranch();
     if ((await remote.exists()) && !(await git.isMerged(remote, develop))) {
       const do_rebase = !!(await vscode.window.showWarningMessage(
@@ -568,7 +568,7 @@ export namespace flow.release {
     await git.requireClean();
 
     const develop = await getConfigDevelopBranch();
-    const remoteDevelop = develop.remoteAt(git.primaryRemote());
+    const remoteDevelop = develop.remoteAt(git.originRemote());
     if (await remoteDevelop.exists()) {
       await git.requireEqual(develop, remoteDevelop);
     }
@@ -649,7 +649,7 @@ export namespace flow.release {
         await git.requireClean();
 
         const master = await getConfigMasterBranch();
-        const remoteMaster = master.remoteAt(git.primaryRemote());
+        const remoteMaster = master.remoteAt(git.originRemote());
         if (!(await remoteMaster.exists())) {
           fail.error({ message: `远程 ${remoteMaster.name} 分支不存在` });
         }
@@ -657,7 +657,7 @@ export namespace flow.release {
         await git.requireEqual(master, remoteMaster);
 
         const develop = await getConfigDevelopBranch();
-        const remoteDevelop = develop.remoteAt(git.primaryRemote());
+        const remoteDevelop = develop.remoteAt(git.originRemote());
         if (!(await remoteDevelop.exists())) {
           fail.error({ message: `远程 ${remoteDevelop.name} 分支不存在` });
         }
@@ -689,7 +689,7 @@ export namespace flow.release {
 
         await git.tagBranch(tagName, tagMessage);
 
-        const remote = git.primaryRemote();
+        const remote = git.originRemote();
         pr.report({
           message: `正在推送 master 到远程 ${remote.name}/${master.name}...`
         });
@@ -765,13 +765,13 @@ export namespace flow.release {
 
         pr.report({ message: "Checking remotes..." });
         const master = await getConfigMasterBranch();
-        const remote_master = master.remoteAt(git.primaryRemote());
+        const remote_master = master.remoteAt(git.originRemote());
         if (await remote_master.exists()) {
           await git.requireEqual(master, remote_master);
         }
 
         const develop = await getConfigDevelopBranch();
-        const remote_develop = develop.remoteAt(git.primaryRemote());
+        const remote_develop = develop.remoteAt(git.originRemote());
         if (await remote_develop.exists()) {
           await git.requireEqual(develop, remote_develop);
         }
@@ -828,7 +828,7 @@ export namespace flow.release {
             (await remote_develop.exists()) &&
             (await remote_master.exists())
           ) {
-            const remote = git.primaryRemote();
+            const remote = git.originRemote();
             pr.report({
               message: `Pushing to ${remote.name}/${develop.name}...`
             });
@@ -906,7 +906,7 @@ export namespace flow.hotfix {
     await git.requireClean();
 
     const master = await getConfigMasterBranch();
-    const remoteMaster = master.remoteAt(git.primaryRemote());
+    const remoteMaster = master.remoteAt(git.originRemote());
     if (await remoteMaster.exists()) {
       await git.requireEqual(master, remoteMaster);
     }
