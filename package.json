@@ -178,12 +178,12 @@
       "properties": {
         "gitflowplus-actions.deleteBranchOnFinish": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "发布完成删除本地分支"
         },
         "gitflowplus-actions.deleteRemoteBranches": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "为 true, 且 `gitflowplus-actions.deleteBranchOnFinish` 也为 true, 发布完成即会删除远程分支"
         }
       }
@@ -350,7 +350,7 @@
       {
         "language": "javascript",
         "path": "./snippets/javascript.json"
-        }
+      }
     ]
   },
   "scripts": {
@@ -378,5 +378,8 @@
     "webpack-cli": "^5.1.4",
     "@vscode/test-cli": "^0.0.9",
     "@vscode/test-electron": "^2.4.0"
-  }
+  },
+  "extensionDependencies": [
+    "vscode.git"
+  ]
 }
