@@ -11,6 +11,7 @@ async function runWrapped<T>(fn: (...arg0: any[]) => Thenable<T>, args: any[] = 
   try {
     return await fn(...args);
   } catch (e: any) {
+    console.error(e);
     if (!e.handlers && !e.message) {
       throw e;
     }
@@ -75,7 +76,7 @@ async function setup(): Promise<vscode.Disposable[]> {
       await runWrapped(flow.feature.publishCurrentBranch);
     }),
     vscode.commands.registerCommand("gitflowplus-actions.publishFinish", async () => {
-      await runWrapped(flow.release.publishFinish);
+      await runWrapped(flow.release.publishBranchFinish);
     }),
 
     vscode.commands.registerCommand("gitflowplus-actions.deleteBranch", async () => {
