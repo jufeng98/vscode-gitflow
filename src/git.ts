@@ -1,6 +1,8 @@
 import * as cp from "child_process";
 import * as fs from "fs";
 import * as path from "path";
+import * as vscode from "vscode";
+import { Branch, GitExtension, Repository } from "./git.d";
 
 import { cmd } from "./cmd";
 import { fail } from "./fail";
@@ -194,7 +196,7 @@ export namespace git {
         .map(line => line.trim())
         .reduce((acc, name) => {
           if (!(name in acc)) { acc.push(name); }
-          
+
           return acc;
         }, [] as string[])
         .map(name => new TagRef(name));
@@ -267,7 +269,7 @@ export namespace git {
         .map(line => line.replace(/^\* /, ""))
         .reduce((acc, name) => {
           if (!(name in acc)) { acc.push(name); }
-          
+
           return acc;
         }, [] as string[])
         .map(name => new BranchRef(name));
@@ -321,22 +323,44 @@ export namespace git {
     }
   }
 
+  export function getCurrentRepository(): Repository {
+    const gitExtension = vscode.extensions.getExtension<GitExtension>('vscode.git')?.exports;
+    if (!gitExtension) {
+      fail.error({ message: "vscode.git插件不可用" });
+    }
+
+    const git = gitExtension!!.getAPI(1);
+    const repositories = git.repositories;
+    if (repositories.length === 0) {
+      fail.error({ message: "未检测到任何git仓库" });
+    }
+
+    return git.repositories[0];
+  }
+
   /**
    * Get a reference to the currently checked out branch
    */
-  export async function currentBranch(): Promise<BranchRef> {
+  export async function currentBranch(): Promise<Branch> {
     const result = await cmd.executeRequired(info.path, [
       "rev-parse",
       "--abbrev-ref",
       "HEAD"
     ]);
+
     const name = result.stdout.trim();
     if (name === "HEAD") {
       // We aren't attached to a branch at the moment
       fail.error({ message: "无法获取当前分支" });
     }
 
-    return BranchRef.fromName(name);
+    return getBranch(name);
+  }
+
+  export async function getBranch(name: string): Promise<Branch> {
+    const repository = getCurrentRepository();
+    const branch = await repository.getBranch(name);
+    return branch;
   }
 
   /**
@@ -381,26 +405,14 @@ export namespace git {
    * Check if we have any unsaved changes
    */
   export async function isClean(): Promise<boolean> {
-    const diff_res = await cmd.execute(info.path, [
-      "diff",
-      "--no-ext-diff",
-      "--ignore-submodules",
-      "--quiet",
-      "--exit-code"
-    ]);
-    if (!!diff_res.retc) {
+    const repository = getCurrentRepository();
+    const diffRes = await repository.diff();
+    if (diffRes !== "") {
       return false;
     }
 
-    const diff_index_res = await cmd.execute(info.path, [
-      "diff-index",
-      "--cached",
-      "--quiet",
-      "--ignore-submodules",
-      "HEAD",
-      "--"
-    ]);
-    if (!!diff_index_res.retc) {
+    const changes = await repository.diffIndexWithHEAD();
+    if (changes.length > 0) {
       return false;
     }
 
@@ -410,15 +422,16 @@ export namespace git {
   /**
    * Detect if the branch "subject" was merged into "base"
    */
-  export async function isMerged(subject: BranchRef, base: BranchRef) {
+  export async function isMerged(subject: string, base: string) {
     const result = await cmd.executeRequired(info.path, [
-      "branch",
-      "--no-color",
-      "--contains",
-      subject.name
+      "rev-list",
+      "--all",
+      "--merges",
+      `--grep="Merge branch '${subject}' into ${base}"`,
+      `--since`,
+      `"${Math.round((Date.now() / 1000 - 86400 * 5))}"`
     ]);
-    const branches = BranchRef.parseListing(result.stdout);
-    return branches.some(br => br.name === base.name);
+    return result.stdout.length > 0;
   }
 
   /**
@@ -435,20 +448,20 @@ export namespace git {
     return cmd.executeRequired(info.path, ["checkout", ref]);
   }
 
-  export function deleteBranch(ref: BranchRef) {
+  export function deleteBranch(ref: Branch) {
     return cmd.executeRequired(git.info.path, [
       "branch",
       "-D",
-      ref.name
+      ref.name!
     ]);
   }
 
-  export function deleteRemoteBranch(ref: BranchRef) {
+  export function deleteRemoteBranch(ref: string) {
     return cmd.executeRequired(git.info.path, [
       "push",
       "origin",
       "--delete",
-      ref.name
+      ref
     ]);
   }
 
@@ -483,8 +496,8 @@ export namespace git {
   /**
    * Merge one branch into the currently checked out branch
    */
-  export function merge(other: BranchRef) {
-    return cmd.executeRequired(info.path, ["merge", "--no-ff", other.name]);
+  export function merge(other: string) {
+    return cmd.executeRequired(info.path, ["merge", "--no-ff", other]);
   }
 
   interface IRebaseParameters {
@@ -501,23 +514,6 @@ export namespace git {
       args.onto.name,
       args.branch.name
     ]);
-  }
-
-  /**
-   * Require that two branches point to the same commit.
-   */
-  export async function requireEqual(local: BranchRef, remote: BranchRef,) {
-    const aref = await local.ref();
-    const bref = await remote.ref();
-
-    // 如果 local 分支不是最新的,则 pull
-    if (aref !== bref) {
-      await cmd.execute(info.path, [
-        "pull",
-        originRemote().name,
-        `${local.name}:${local.name}`,
-      ]);
-    }
   }
 
   export async function requireClean() {
