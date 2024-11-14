@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 class ConfigReader {
   private _readConfig<T>(key: string, default_: T): T {
     const val = vscode.workspace
-      .getConfiguration("gitflow-actions")
+      .getConfiguration("gitflowplus-actions")
       .get<T>(key);
     if (val === undefined) {
       return default_;
@@ -17,14 +17,6 @@ class ConfigReader {
 
   get deleteRemoteBranches(): boolean {
     return this._readConfig<boolean>("deleteRemoteBranches", true);
-  }
-
-  get default_development(): string {
-    return this._readConfig<string>("default.development", "develop");
-  }
-
-  get default_production(): string {
-    return this._readConfig<string>("default.production", "master");
   }
 }
 
